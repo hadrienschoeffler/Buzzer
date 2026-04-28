@@ -182,13 +182,16 @@ export default function Manager({ initialRoom, myInfo, onLeave }) {
 
 const styles = {
   container: {
-    minHeight: '100vh',
+    minHeight: '100dvh',
+    width: '100%',
+    overflowX: 'hidden',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     background: '#0f0f1a',
     color: '#fff',
     fontFamily: 'sans-serif',
+    padding: '1rem',
   },
   card: {
     background: '#1a1a2e',

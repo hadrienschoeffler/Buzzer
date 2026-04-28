@@ -156,8 +156,20 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
 }
 
 const styles = {
-  container: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f1a', color: '#fff', fontFamily: 'sans-serif' },
-  card: { background: '#1a1a2e', padding: '2rem', borderRadius: '1rem', width: '340px', display: 'flex', flexDirection: 'column', gap: '1.25rem' },
+  container: {
+  minHeight: '100dvh',
+  width: '100%',
+  overflowX: 'hidden',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: '#0f0f1a',
+  color: '#fff',
+  fontFamily: 'sans-serif',
+  padding: '1rem',
+},
+  card: { width: '100%',
+  maxWidth: '390px', background: '#1a1a2e', padding: '2rem', borderRadius: '1rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   title: { margin: 0, fontSize: '1.3rem' },
   code: { background: '#e63946', padding: '0.1rem 0.5rem', borderRadius: '0.3rem', letterSpacing: '0.1em' },

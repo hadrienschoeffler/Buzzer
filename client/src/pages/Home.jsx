@@ -120,16 +120,16 @@ export default function Home({ onRoomJoined }) {
 
 const styles = {
   container: {
-    minHeight: '100vh',
-    position: 'relative',
-    overflow: 'hidden',
+    minHeight: '100dvh',
+    width: '100%',
+    overflowX: 'hidden',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'radial-gradient(circle at top, #251827 0%, #0d0d14 45%, #08080d 100%)',
+    background: '#0f0f1a',
     color: '#fff',
-    fontFamily: 'Inter, system-ui, sans-serif',
-    padding: '1.5rem',
+    fontFamily: 'sans-serif',
+    padding: '1rem',
   },
   backgroundGlow: {
     position: 'absolute',
