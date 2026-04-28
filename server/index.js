@@ -34,6 +34,9 @@ io.on('connection', (socket) => {
     if (!result.success) return callback(result);
     socket.join(code);
     io.to(code).emit('room_updated', rooms.getPublicState(code));
+    io.to(code).emit('notification', {
+      message: `${pseudo} a rejoint le salon`
+    });
     console.log(`👤 ${pseudo} a rejoint ${code}`);
     callback({ success: true, room: rooms.getPublicState(code) });
   });
@@ -90,8 +93,16 @@ io.on('connection', (socket) => {
       const state = rooms.getPublicState(affected.code);
       if (state) {
         io.to(affected.code).emit('room_updated', state);
+
         if (affected.isManager) {
           io.to(affected.code).emit('manager_left');
+          io.to(affected.code).emit('notification', {
+            message: 'Le gérant s’est déconnecté'
+          });
+        } else {
+          io.to(affected.code).emit('notification', {
+            message: `${affected.pseudo} s’est déconnecté`
+          });
         }
       }
     }

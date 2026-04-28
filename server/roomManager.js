@@ -110,7 +110,7 @@ export class RoomManager {
 
     if (isManager) {
       room.managerOnline = false;
-      return { code, isManager: true };
+      return { code, pseudo, isManager: true };
     }
 
     // Participant : on le marque offline mais on garde ses points
@@ -127,7 +127,7 @@ export class RoomManager {
       return { code, deleted: true };
     }
 
-    return { code, isManager: false };
+    return { code, pseudo, isManager: false };
   }
 
   getPublicState(code) {

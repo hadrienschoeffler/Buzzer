@@ -8,6 +8,7 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
   const [finalScores, setFinalScores] = useState([]);
   const [managerOnline, setManagerOnline] = useState(initialRoom?.managerOnline ?? true);
   const [reconnecting, setReconnecting] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   const canBuzz = !buzzed && !gameOver && managerOnline;
 
@@ -15,6 +16,10 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
     socket.on('room_updated', (updatedRoom) => {
       setRoom(updatedRoom);
       setManagerOnline(updatedRoom.managerOnline);
+    });
+    socket.on('notification', ({ message }) => {
+      setNotification(message);
+      setTimeout(() => setNotification(null), 2500);
     });
 
     socket.on('manager_left', () => setManagerOnline(false));
@@ -47,6 +52,7 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
       socket.off('game_over');
       socket.off('disconnect');
       socket.off('connect');
+      socket.off('notification');
     };
   }, [reconnecting, room?.code, myInfo?.pseudo]);
 
@@ -93,13 +99,18 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
       <div style={styles.card}>
         <div style={styles.header}>
           <h2 style={styles.title}>Salon <span style={styles.code}>{room?.code}</span></h2>
-          <span style={styles.myScore}>⭐ {myScore} pt{myScore > 1 ? 's' : ''}</span>
+            <span style={styles.myScore}>{myScore} pt{myScore > 1 ? 's' : ''}</span>
         </div>
 
         {/* Bannière gérant absent */}
         {!managerOnline && (
           <div style={styles.warningBanner}>
             ⏸️ Le gérant est déconnecté, la partie est en pause...
+          </div>
+        )}
+        {notification && (
+          <div style={styles.notification}>
+            {notification}
           </div>
         )}
 
@@ -113,18 +124,19 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
             onClick={handleBuzz}
             disabled={!canBuzz}
           >
-            {isBuzzer ? '⚡ TOI !' : canBuzz ? 'BUZZ' : buzzed ? `⚡ ${buzzed}` : '...'}
+            {isBuzzer ? 'TOI !' : canBuzz ? 'BUZZ' : buzzed ? `${buzzed}` : '...'}
           </button>
         </div>
 
         <div style={styles.status}>
-          {isBuzzer && <p style={styles.statusWin}>🎉 Tu as la parole !</p>}
-          {buzzed && !isBuzzer && <p style={styles.statusLost}>⚡ {buzzed} a buzzé en premier</p>}
-          {!buzzed && managerOnline && <p style={styles.statusWaiting}>En attente d'une question...</p>}
+          {isBuzzer && <p style={styles.statusWin}>À toi de répondre.</p>}
+          {buzzed && !isBuzzer && <p style={styles.statusLost}>{buzzed} a la main.</p>}
+          {!buzzed && managerOnline && <p style={styles.statusWaiting}>Prêt à buzzer.</p>}
+          {!managerOnline && <p style={styles.statusWaiting}>La partie est en pause.</p>}
         </div>
 
         {/* Classement */}
-        <div>
+        {/* <div>
           <h3 style={styles.sectionTitle}>Classement</h3>
           {room?.participants
             ?.slice()
@@ -137,7 +149,7 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
               </div>
             ))
           }
-        </div>
+        </div> */}
       </div>
     </div>
   );
@@ -151,6 +163,7 @@ const styles = {
   code: { background: '#e63946', padding: '0.1rem 0.5rem', borderRadius: '0.3rem', letterSpacing: '0.1em' },
   myScore: { color: '#ffd700', fontWeight: 'bold' },
   warningBanner: { background: '#e67e2222', border: '1px solid #e67e22', borderRadius: '0.5rem', padding: '0.75rem', color: '#e67e22', fontSize: '0.9rem', textAlign: 'center' },
+  notification: { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#ddd', borderRadius: '0.6rem', padding: '0.65rem 0.8rem', fontSize: '0.9rem', textAlign: 'center' },
   buzzerContainer: { display: 'flex', justifyContent: 'center', padding: '1rem 0' },
   buzzer: { width: '160px', height: '160px', borderRadius: '50%', border: 'none', fontSize: '1.8rem', fontWeight: '900', cursor: 'pointer', transition: 'all 0.15s' },
   buzzerActive: { background: '#e63946', color: '#fff', boxShadow: '0 0 40px #e6394688' },
