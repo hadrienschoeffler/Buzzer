@@ -10,7 +10,20 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
   const [reconnecting, setReconnecting] = useState(false);
   const [notification, setNotification] = useState(null);
 
-  const canBuzz = !buzzed && !gameOver && managerOnline;
+  const alreadyBuzzed = room?.alreadyBuzzedThisQuestion?.includes(myInfo.pseudo);
+  const oneBuzzPerQuestion = room?.settings?.oneBuzzPerQuestion;
+  const noOneCanBuzz =
+    oneBuzzPerQuestion &&
+    !buzzed &&
+    room?.participants?.some((p) => p.online) &&
+    room?.remainingCanBuzzCount === 0;
+
+  const canBuzz =
+    !buzzed &&
+    !gameOver &&
+    managerOnline &&
+    (!oneBuzzPerQuestion || !alreadyBuzzed) &&
+    !noOneCanBuzz;
 
   useEffect(() => {
     socket.on('room_updated', (updatedRoom) => {
@@ -124,14 +137,28 @@ export default function Player({ initialRoom, myInfo, onLeave }) {
             onClick={handleBuzz}
             disabled={!canBuzz}
           >
-            {isBuzzer ? 'TOI !' : canBuzz ? 'BUZZ' : buzzed ? `${buzzed}` : '...'}
-          </button>
+            {isBuzzer
+              ? 'À toi'
+              : canBuzz
+                ? 'BUZZ'
+                : noOneCanBuzz
+                  ? 'Terminé'
+                  : alreadyBuzzed
+                    ? 'Déjà répondu'
+                    : buzzed
+                      ? buzzed
+                      : '...'}
+           </button>
         </div>
 
         <div style={styles.status}>
           {isBuzzer && <p style={styles.statusWin}>À toi de répondre.</p>}
           {buzzed && !isBuzzer && <p style={styles.statusLost}>{buzzed} a la main.</p>}
-          {!buzzed && managerOnline && <p style={styles.statusWaiting}>Prêt à buzzer.</p>}
+          {!buzzed && canBuzz && <p style={styles.statusWaiting}>Prêt à buzzer.</p>}
+          {!buzzed && alreadyBuzzed && !noOneCanBuzz && (
+            <p style={styles.statusLost}>Tu as déjà répondu à cette question.</p>
+          )}
+          {noOneCanBuzz && <p style={styles.statusWaiting}>En attente de la prochaine question.</p>}
           {!managerOnline && <p style={styles.statusWaiting}>La partie est en pause.</p>}
         </div>
 

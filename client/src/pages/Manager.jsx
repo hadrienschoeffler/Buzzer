@@ -10,6 +10,12 @@ export default function Manager({ initialRoom, myInfo, onLeave }) {
   const [notification, setNotification] = useState(null);
 
   const buzzed = room?.buzzer || null;
+  const oneBuzzPerQuestion = room?.settings?.oneBuzzPerQuestion;
+  const noOneCanBuzz =
+    oneBuzzPerQuestion &&
+    !buzzed &&
+    room?.participants?.some((p) => p.online) &&
+    room?.remainingCanBuzzCount === 0;
 
   useEffect(() => {
     socket.on('room_updated', (updatedRoom) => setRoom(updatedRoom));
@@ -57,8 +63,9 @@ export default function Manager({ initialRoom, myInfo, onLeave }) {
     }
   };
 
-  const resetBuzz = () => socket.emit('reset_buzz', { code: room.code });
+  const refuseBuzz = () => socket.emit('refuse_buzz', { code: room.code });
   const validatePoint = () => socket.emit('validate_point', { code: room.code });
+  const newQuestion = () => socket.emit('new_question', { code: room.code });
   const endGame = () => socket.emit('end_game', { code: room.code });
 
   if (reconnecting) {
@@ -138,10 +145,16 @@ export default function Manager({ initialRoom, myInfo, onLeave }) {
             <button style={styles.btnSuccess} onClick={validatePoint}>
               Valider +1
             </button>
-            <button style={styles.btnDanger} onClick={resetBuzz}>
-              Reset
+            <button style={styles.btnDanger} onClick={refuseBuzz}>
+              Refuser
             </button>
           </div>
+        )}
+
+        {noOneCanBuzz && (
+          <button style={styles.btnPrimary} onClick={newQuestion}>
+            Nouvelle question
+          </button>
         )}
 
         <div>
@@ -281,6 +294,16 @@ const styles = {
     flex: 1,
     padding: '0.75rem',
     background: '#e67e22',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '0.5rem',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+  },
+  btnPrimary: {
+    padding: '0.75rem',
+    background: '#e63946',
     color: '#fff',
     border: 'none',
     borderRadius: '0.5rem',

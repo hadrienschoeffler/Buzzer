@@ -4,67 +4,61 @@ function generateCode() {
 
 export class RoomManager {
   constructor() {
-    this.rooms = {};        // code -> room
-    this.socketToRoom = {}; // socketId -> { code, pseudo, isManager }
+    this.rooms = {};
+    this.socketToRoom = {};
   }
 
-  create(socketId, pseudo) {
+  create(socketId, pseudo, settings = {}) {
     const code = generateCode();
+
     this.rooms[code] = {
       code,
       managerPseudo: pseudo,
       managerSocketId: socketId,
       managerOnline: true,
-      participants: {},   // pseudo -> { pseudo, score, online }
-      buzzer: null,       // pseudo du buzzeur actif
-      active: true
+      participants: {},
+      buzzer: null,
+      active: true,
+      settings: {
+        oneBuzzPerQuestion: settings.oneBuzzPerQuestion ?? false,
+      },
+      alreadyBuzzedThisQuestion: [],
     };
+
     this.socketToRoom[socketId] = { code, pseudo, isManager: true };
     return this.rooms[code];
   }
 
- join(code, socketId, pseudo) {
-  const room = this.rooms[code];
-  if (!room) return { success: false, error: 'Salon introuvable' };
-  if (!room.active) return { success: false, error: 'Partie terminée' };
+  join(code, socketId, pseudo) {
+    const room = this.rooms[code];
+    if (!room) return { success: false, error: 'Salon introuvable' };
+    if (!room.active) return { success: false, error: 'Partie terminée' };
 
-  // Reconnexion d'un participant existant
-  if (room.participants[pseudo]) {
-    room.participants[pseudo].online = true;
-    const oldSocketId = Object.keys(this.socketToRoom)
-      .find(id => this.socketToRoom[id]?.code === code && this.socketToRoom[id]?.pseudo === pseudo);
-    if (oldSocketId) delete this.socketToRoom[oldSocketId];
+    if (room.managerPseudo === pseudo) {
+      return { success: false, error: 'Ce pseudo est réservé au gérant' };
+    }
+
+    if (room.participants[pseudo]) {
+      room.participants[pseudo].online = true;
+    } else {
+      room.participants[pseudo] = { pseudo, score: 0, online: true };
+    }
+
     this.socketToRoom[socketId] = { code, pseudo, isManager: false };
-    return { success: true, reconnected: true };
+    return { success: true };
   }
 
-  // Pseudo déjà pris par quelqu'un d'autre
-  const pseudoTaken = Object.values(room.participants).some(p => p.pseudo === pseudo);
-  if (pseudoTaken) return { success: false, error: 'Ce pseudo est déjà pris dans ce salon' };
-
-  // Pseudo identique au gérant
-  if (room.managerPseudo === pseudo) return { success: false, error: 'Ce pseudo est déjà pris dans ce salon' };
-
-  // Nouveau participant
-  room.participants[pseudo] = { pseudo, score: 0, online: true };
-  this.socketToRoom[socketId] = { code, pseudo, isManager: false };
-  return { success: true, reconnected: false };
-}
-
-  // Reconnexion du gérant
   rejoinAsManager(code, socketId, pseudo) {
     const room = this.rooms[code];
     if (!room) return { success: false, error: 'Salon introuvable' };
-    if (room.managerPseudo !== pseudo) return { success: false, error: 'Tu n\'es pas le gérant de ce salon' };
-
-    // Supprime l'ancien socketId du gérant
-    const oldSocketId = Object.keys(this.socketToRoom)
-      .find(id => this.socketToRoom[id]?.code === code && this.socketToRoom[id]?.isManager);
-    if (oldSocketId) delete this.socketToRoom[oldSocketId];
+    if (room.managerPseudo !== pseudo) {
+      return { success: false, error: 'Tu n’es pas le gérant de ce salon' };
+    }
 
     room.managerSocketId = socketId;
     room.managerOnline = true;
     this.socketToRoom[socketId] = { code, pseudo, isManager: true };
+
     return { success: true };
   }
 
@@ -72,40 +66,77 @@ export class RoomManager {
     const room = this.rooms[code];
     if (!room || room.buzzer !== null) return { success: false };
     if (!room.participants[pseudo]) return { success: false };
+
+    if (
+      room.settings.oneBuzzPerQuestion &&
+      room.alreadyBuzzedThisQuestion.includes(pseudo)
+    ) {
+      return { success: false };
+    }
+
     room.buzzer = pseudo;
+
+    if (
+      room.settings.oneBuzzPerQuestion &&
+      !room.alreadyBuzzedThisQuestion.includes(pseudo)
+    ) {
+      room.alreadyBuzzedThisQuestion.push(pseudo);
+    }
+
     return { success: true, pseudo };
   }
 
-  resetBuzz(code, socketId) {
+  refuseBuzz(code, socketId) {
     const room = this.rooms[code];
     if (!room || room.managerSocketId !== socketId) return { success: false };
+
     room.buzzer = null;
+    return { success: true };
+  }
+
+  newQuestion(code, socketId) {
+    const room = this.rooms[code];
+    if (!room || room.managerSocketId !== socketId) return { success: false };
+
+    room.buzzer = null;
+    room.alreadyBuzzedThisQuestion = [];
     return { success: true };
   }
 
   validatePoint(code, socketId) {
     const room = this.rooms[code];
-    if (!room || room.managerSocketId !== socketId || !room.buzzer) return { success: false };
+    if (!room || room.managerSocketId !== socketId || !room.buzzer) {
+      return { success: false };
+    }
+
     room.participants[room.buzzer].score += 1;
+
     room.buzzer = null;
+    room.alreadyBuzzedThisQuestion = [];
+
     return { success: true };
   }
 
   endGame(code, socketId) {
     const room = this.rooms[code];
     if (!room || room.managerSocketId !== socketId) return { success: false };
+
     room.active = false;
-    const scores = Object.values(room.participants)
-      .sort((a, b) => b.score - a.score);
+
+    const scores = Object.values(room.participants).sort((a, b) => b.score - a.score);
+
     return { success: true, scores };
   }
 
   disconnect(socketId) {
     const info = this.socketToRoom[socketId];
     if (!info) return null;
+
     const { code, pseudo, isManager } = info;
     const room = this.rooms[code];
+
     delete this.socketToRoom[socketId];
+
     if (!room) return null;
 
     if (isManager) {
@@ -113,15 +144,14 @@ export class RoomManager {
       return { code, pseudo, isManager: true };
     }
 
-    // Participant : on le marque offline mais on garde ses points
     if (room.participants[pseudo]) {
       room.participants[pseudo].online = false;
     }
 
-    // Ferme le salon seulement si tout le monde est offline
     const anyoneOnline =
       room.managerOnline ||
-      Object.values(room.participants).some(p => p.online);
+      Object.values(room.participants).some((p) => p.online);
+
     if (!anyoneOnline) {
       delete this.rooms[code];
       return { code, deleted: true };
@@ -133,13 +163,24 @@ export class RoomManager {
   getPublicState(code) {
     const room = this.rooms[code];
     if (!room) return null;
+
+    const participants = Object.values(room.participants);
+    const onlineParticipants = participants.filter((p) => p.online);
+
+    const remainingCanBuzz = onlineParticipants.filter(
+      (p) => !room.alreadyBuzzedThisQuestion.includes(p.pseudo)
+    );
+
     return {
       code: room.code,
       managerPseudo: room.managerPseudo,
       managerOnline: room.managerOnline,
-      participants: Object.values(room.participants),
+      participants,
       buzzer: room.buzzer,
-      active: room.active
+      active: room.active,
+      settings: room.settings,
+      alreadyBuzzedThisQuestion: room.alreadyBuzzedThisQuestion,
+      remainingCanBuzzCount: remainingCanBuzz.length,
     };
   }
 }

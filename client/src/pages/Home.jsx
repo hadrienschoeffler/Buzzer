@@ -5,38 +5,70 @@ export default function Home({ onRoomJoined }) {
   const [pseudo, setPseudo] = useState('');
   const [mode, setMode] = useState(null);
   const [code, setCode] = useState('');
+  const [oneBuzzPerQuestion, setOneBuzzPerQuestion] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleCreate = () => {
     if (!pseudo.trim()) return setError('Entre un pseudo');
-    setLoading(true);
 
+    setLoading(true);
     socket.connect();
-    socket.emit('create_room', { pseudo: pseudo.trim() }, (res) => {
-      setLoading(false);
-      if (res.success) {
-        saveSession({ code: res.room.code, pseudo: pseudo.trim(), isManager: true });
-        onRoomJoined({ room: res.room, pseudo: pseudo.trim(), isManager: true });
-      } else {
-        setError(res.error || 'Erreur');
+
+    socket.emit(
+      'create_room',
+      {
+        pseudo: pseudo.trim(),
+        settings: {
+          oneBuzzPerQuestion,
+        },
+      },
+      (res) => {
+        setLoading(false);
+
+        if (res.success) {
+          saveSession({
+            code: res.room.code,
+            pseudo: pseudo.trim(),
+            isManager: true,
+          });
+
+          onRoomJoined({
+            room: res.room,
+            pseudo: pseudo.trim(),
+            isManager: true,
+          });
+        } else {
+          setError(res.error || 'Erreur');
+        }
       }
-    });
+    );
   };
 
   const handleJoin = () => {
     if (!pseudo.trim()) return setError('Entre un pseudo');
     if (!code.trim()) return setError('Entre un code de salon');
-    setLoading(true);
 
     const cleanCode = code.trim().toUpperCase();
 
+    setLoading(true);
     socket.connect();
+
     socket.emit('join_room', { code: cleanCode, pseudo: pseudo.trim() }, (res) => {
       setLoading(false);
+
       if (res.success) {
-        saveSession({ code: cleanCode, pseudo: pseudo.trim(), isManager: false });
-        onRoomJoined({ room: res.room, pseudo: pseudo.trim(), isManager: false });
+        saveSession({
+          code: cleanCode,
+          pseudo: pseudo.trim(),
+          isManager: false,
+        });
+
+        onRoomJoined({
+          room: res.room,
+          pseudo: pseudo.trim(),
+          isManager: false,
+        });
       } else {
         setError(res.error || 'Salon introuvable');
       }
@@ -56,7 +88,6 @@ export default function Home({ onRoomJoined }) {
 
       <main style={styles.card}>
         <div style={styles.brand}>
-          <div style={styles.logo}/>
           <h1 style={styles.title}>Buzzer</h1>
           <p style={styles.subtitle}>avec quiz en voc</p>
         </div>
@@ -98,6 +129,17 @@ export default function Home({ onRoomJoined }) {
               />
             )}
 
+            {mode === 'create' && (
+              <label style={styles.settingRow}>
+                <input
+                  type="checkbox"
+                  checked={oneBuzzPerQuestion}
+                  onChange={(e) => setOneBuzzPerQuestion(e.target.checked)}
+                />
+                <span>Un seul buzz par joueur et par question</span>
+              </label>
+            )}
+
             <button
               style={styles.btnPrimary}
               onClick={mode === 'create' ? handleCreate : handleJoin}
@@ -123,12 +165,13 @@ const styles = {
     minHeight: '100dvh',
     width: '100%',
     overflowX: 'hidden',
+    position: 'relative',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#0f0f1a',
+    background: 'radial-gradient(circle at top, #251827 0%, #0d0d14 45%, #08080d 100%)',
     color: '#fff',
-    fontFamily: 'sans-serif',
+    fontFamily: 'Inter, system-ui, sans-serif',
     padding: '1rem',
   },
   backgroundGlow: {
@@ -158,14 +201,6 @@ const styles = {
   brand: {
     textAlign: 'center',
   },
-  logo: {
-  width: '48px',
-  height: '48px',
-  margin: '0 auto 1rem',
-  borderRadius: '50%',
-  background: 'radial-gradient(circle, #ff5b50 0%, #e63946 60%, #7a1c1c 100%)',
-  boxShadow: '0 0 25px rgba(230, 57, 70, 0.6)',
-},
   title: {
     margin: 0,
     fontSize: '2.8rem',
@@ -191,7 +226,15 @@ const styles = {
     fontSize: '1rem',
     outline: 'none',
     width: '100%',
-    boxSizing: 'border-box',
+  },
+  settingRow: {
+    display: 'flex',
+    gap: '0.65rem',
+    alignItems: 'center',
+    color: '#c7c7d5',
+    fontSize: '0.9rem',
+    lineHeight: 1.3,
+    padding: '0.2rem 0',
   },
   buttonGroup: {
     display: 'flex',
